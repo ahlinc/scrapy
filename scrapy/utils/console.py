@@ -5,19 +5,29 @@ def _embed_ipython_shell(namespace={}, banner=''):
     """Start an IPython Shell"""
     try:
         from IPython.terminal.embed import InteractiveShellEmbed
-        from IPython.terminal.ipapp import load_default_config
+        from IPython.terminal.ipapp import TerminalIPythonApp
     except ImportError:
         from IPython.frontend.terminal.embed import InteractiveShellEmbed
-        from IPython.frontend.terminal.ipapp import load_default_config
+        from IPython.frontend.terminal.ipapp import TerminalIPythonApp
 
     @wraps(_embed_ipython_shell)
     def wrapper(namespace=namespace, banner=''):
-        config = load_default_config()
-        # Always use .instace() to ensure _instance propagation to all parents
-        # this is needed for <TAB> completion works well for new imports
-        shell = InteractiveShellEmbed.instance(
-            banner1=banner, user_ns=namespace, config=config)
-        shell()
+
+        class IPythonAppEmbed(TerminalIPythonApp):
+            def init_shell(self):
+                self.shell = InteractiveShellEmbed.instance(
+                    parent=self,
+                    profile_dir=self.profile_dir,
+                    ipython_dir=self.ipython_dir,
+                    banner1=banner,
+                    user_ns=namespace,
+                )
+                self.shell.configurables.append(self)
+
+        app = IPythonAppEmbed.instance()
+        app.initialize(argv=())
+        app.start()
+
     return wrapper
 
 def _embed_bpython_shell(namespace={}, banner=''):
